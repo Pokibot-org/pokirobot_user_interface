@@ -1,0 +1,6 @@
+.pio
+
+# Remove all Brenda ressources (because too big to be versionned)
+sd/sources_sound/brenda/
+sd/sd_data/brenda/
+
