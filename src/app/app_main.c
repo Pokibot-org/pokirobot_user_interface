@@ -1,3 +1,5 @@
+#include "app_main.h"
+
 #include "main.h"
 
 #include <string.h>
@@ -74,18 +76,20 @@ PKC_item buttonSoundboard;
 PKC_item numPad;
 PKC_numPadP numPadParams;
 
-
+int mainIHMIsOpen = 1;
 void mainIHMOpen() {
     PKC_addItem(&buttonOptions);
     PKC_addItem(&buttonBomb);
     PKC_addItem(&buttonMatch);
     PKC_addItem(&buttonSoundboard);
+    mainIHMIsOpen = 1;
 }
 void mainIHMClose() {
     PKC_removeItem(&buttonOptions);
     PKC_removeItem(&buttonBomb);
     PKC_removeItem(&buttonMatch);
     PKC_removeItem(&buttonSoundboard);
+    mainIHMIsOpen = 0;
 }
 
 void paramCloseCallback() {
@@ -126,6 +130,11 @@ void buttonMatchCallback(int event) {
     if (event&PKC_BUTTON_RELEASE) {
         mainIHMClose();
         IHM_matchOpen();
+    }
+}
+void APP_forceMatchIHM() {
+    if (mainIHMIsOpen) {
+        buttonMatchCallback(PKC_BUTTON_RELEASE);
     }
 }
 void buttonSoundboardCallback(int event) {
@@ -326,6 +335,10 @@ int app_main(void) {
         }
         if (loopCounter%20 == 2) {
             BAT_update();
+        }
+
+        if (loopCounter%10 == 3) {
+            PCOM_tick();
         }
 
         SWH_tick();

@@ -10,6 +10,7 @@
 
 #include "./../led/LED_led.h"
 
+#include "./../app/app_main.h"
 
 
 #define MATCH_DURATION 100
@@ -60,6 +61,7 @@ void IHM_matchTiretteReleased() {
     IHM_matchStartTick = HAL_GetTick();
     matchStarted = 1;
     PKC_logAddLine(&logMatch, 0xFF00FF00, "|I| Debut du match");
+    APP_forceMatchIHM();
 }
 
 void IHM_matchTirettePlugged() {

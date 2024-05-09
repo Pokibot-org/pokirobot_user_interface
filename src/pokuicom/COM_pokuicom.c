@@ -9,21 +9,46 @@
 UART_HandleTypeDef huart6;
 
 extern PKC_item segmentsMatchScore;
-
 struct poktocol obj;
-bool has_color_info = false;
-enum pokprotocol_team received_color;
-
 uint8_t recvd_data;
 
+// Latched data, for request response
+enum pokprotocol_team latchedColor = POKTOCOL_TEAM_BLUE;
+int latchedMatchStarted = 0;
+
+// Statistics
+int statReceivedRequest = 0;
+
+// Global variable status
+int COM_pokuicomAlive = 0;
+
 static void PCOM_receive(struct poktocol_msg *msg, void *user_data) {
-    switch (msg->type) {
-        case POKTOCOL_DATA_TYPE_SCORE:
-            PKC_segmentsSetTarget(&segmentsMatchScore, (int)msg->data.score);
+    switch (msg->cmd) {
+        case POKTOCOL_CMD_TYPE_WRITE:
+            switch (msg->type) {
+                case POKTOCOL_DATA_TYPE_SCORE:
+                    PKC_segmentsSetTarget(&segmentsMatchScore, (int)msg->data.score);
+                    break;
+                case POKTOCOL_DATA_TYPE_TEAM:
+                    break;
+                case POKTOCOL_DATA_TYPE_MATCH_STARTED:
+                    break;
+            }
             break;
-        case POKTOCOL_DATA_TYPE_TEAM:
-            break;
-        case POKTOCOL_DATA_TYPE_MATCH_STARTED:
+        case POKTOCOL_CMD_TYPE_REQUEST:
+            statReceivedRequest++;
+            switch (msg->type) {
+                case POKTOCOL_DATA_TYPE_SCORE:
+                    break;
+                case POKTOCOL_DATA_TYPE_TEAM:
+                    PCOM_send_team_color(latchedColor);
+                    break;
+                case POKTOCOL_DATA_TYPE_MATCH_STARTED:
+                    if (latchedMatchStarted) {
+                        PCOM_notify_start_of_match();
+                    }
+                    break;
+            }
             break;
     }
 }
@@ -49,6 +74,9 @@ void PCOM_send_score(uint8_t score) {
 }
 
 void PCOM_notify_start_of_match() {
+
+    latchedMatchStarted = 1;
+
     struct poktocol_msg msg = {
         .cmd = POKTOCOL_CMD_TYPE_WRITE,
         .type = POKTOCOL_DATA_TYPE_MATCH_STARTED
@@ -58,6 +86,9 @@ void PCOM_notify_start_of_match() {
 }
 
 void PCOM_send_team_color(enum pokprotocol_team color) {
+    // Latch the color, for request responses
+    latchedColor = color;
+
     struct poktocol_msg msg = {
         .cmd = POKTOCOL_CMD_TYPE_WRITE,
         .type = POKTOCOL_DATA_TYPE_TEAM,
@@ -67,7 +98,6 @@ void PCOM_send_team_color(enum pokprotocol_team color) {
     pokprotocol_send(&obj, &msg);
 }
 
-int charR = 0;
 
 int PCOM_init(void) {
     struct poktocol_config cfg = {
@@ -77,24 +107,27 @@ int PCOM_init(void) {
     };
     pokprotocol_init(&obj, &cfg);
 
-    printf("Start IT\r\n");
+    // Init first UART IT
     HAL_UART_Receive_IT(&huart6, &recvd_data, 1);
-
-    //HAL_UART_Transmit_DMA(&huart6, "TRUC\r\n", 6);
-
-    // HAL_Delay(500);
-    // printf("NBR: %d\r\n", charR);
-
 
     return 0;
 }
 
+
+void PCOM_tick() {
+    if (statReceivedRequest > 0) {
+        COM_pokuicomAlive = 1;
+    } else {
+        COM_pokuicomAlive = 0;
+    }
+    statReceivedRequest = 0;
+}
+
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    // TODO: place this interrupt elsewhere, to handle other UART interrupts
     if (huart == &huart6) {
         HAL_UART_Receive_IT(&huart6, &recvd_data, 1);
         pokprotocol_feed_byte(&obj, recvd_data);
-        // printf("R%02X\r\n", recvd_data);
-        // printf("%c", recvd_data);
-        charR++;
     }
 }

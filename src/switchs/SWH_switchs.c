@@ -22,12 +22,16 @@ int switch1_state = -1;
 int switch2_state = -1;
 int switch3_state = -1;
 
-int match_started = 0;
-
 
 int adcValueVolume = 0;
 
 int rgbStateLed = 0;
+
+
+enum SWH_tiretteState tiretteState = SWH_tiretteNotPlaced;
+
+extern int COM_pokuicomAlive;
+
 
 
 // ADC interuption
@@ -65,20 +69,21 @@ void SWH_tick() {
     if (tirette_state != st) {
         if (tirette_state == 1 && st == 0) {
             // Tirette has been removed: starting match
-            LED_setColor(LED_BOTTOM_MIDDLE, 0x00, 0x00, 0xFF);
+
             ASYS_playFile("brenda/squalala_nous_sommes_partis.wav", 200);
             PCOM_notify_start_of_match();
             IHM_matchTiretteReleased();
+            tiretteState = SWH_tiretteRemoved;
         } else {
             if (st == 0) {
                 // No tirette when booting
-                LED_setColor(LED_BOTTOM_MIDDLE, 0xFF, 0x00, 0x00);
-                LED_setBlink(LED_BOTTOM_MIDDLE, 1, 0, 0);
+                tiretteState = SWH_tiretteNotPlaced;
             } else {
                 // Tirette has been placed
                 ASYS_playFile("sound/ho-je-bouge-plus.wav", 190);
-                LED_setColor(LED_BOTTOM_MIDDLE, 0x00, 0xFF, 0x00);
+
                 IHM_matchTirettePlugged();
+                tiretteState = SWH_tirettePlaced;
             }
         }
         tirette_state = st;
@@ -122,4 +127,14 @@ void SWH_tick() {
     rgbStateLed = (rgbStateLed + 1) & 0xFF;
     uint32_t color = BSP_LCD_getRainbowColor(rgbStateLed);
     LED_setColor(LED_TOP_MIDDLE, (color>>16)&0xFF, (color>>8)&0xFF, (color>>0)&0xFF);
+
+
+    if (!COM_pokuicomAlive || tiretteState == SWH_tiretteNotPlaced) {
+        LED_setColor(LED_BOTTOM_MIDDLE, 0xFF, 0x00, 0x00);
+        LED_setBlink(LED_BOTTOM_MIDDLE, 1, 0, 0);
+    } else if (tiretteState == SWH_tirettePlaced) {
+        LED_setColor(LED_BOTTOM_MIDDLE, 0x00, 0xFF, 0x00);
+    } else if (tiretteState == SWH_tiretteRemoved) {
+        LED_setColor(LED_BOTTOM_MIDDLE, 0x00, 0x00, 0xFF);
+    }
 }

@@ -6,6 +6,7 @@
 
 
 int PCOM_init(void);
+void PCOM_tick();
 
 void PCOM_send_team_color(enum pokprotocol_team color);
 void PCOM_notify_start_of_match();
